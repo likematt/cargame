@@ -1,1 +1,70 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Simple Race</title>
+    <style>
+        body { margin: 0; background: #333; overflow: hidden; font-family: sans-serif; }
+        #gameCanvas { background: #555; display: block; margin: 0 auto; border-left: 5px dashed white; border-right: 5px dashed white; }
+        #score { position: absolute; top: 10px; left: 10px; color: white; font-size: 20px; }
+    </style>
+</head>
+<body>
+    <div id="score">Score: 0</div>
+    <canvas id="gameCanvas"></canvas>
 
+    <script>
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        canvas.width = 400; canvas.height = window.innerHeight;
+
+        let score = 0;
+        let player = { x: 175, y: canvas.height - 100, w: 50, h: 80, speed: 5 };
+        let enemies = [];
+
+        function drawPlayer() {
+            ctx.fillStyle = 'red';
+            ctx.fillRect(player.x, player.y, player.w, player.h);
+        }
+
+        function spawnEnemy() {
+            if (Math.random() < 0.02) {
+                enemies.push({ x: Math.random() * (canvas.width - 50), y: -100, w: 50, h: 80 });
+            }
+        }
+
+        function update() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            drawPlayer();
+            
+            enemies.forEach((enemy, index) => {
+                enemy.y += 5;
+                ctx.fillStyle = 'blue';
+                ctx.fillRect(enemy.x, enemy.y, enemy.w, enemy.h);
+
+                // Collision Detection
+                if (player.x < enemy.x + enemy.w && player.x + player.w > enemy.x &&
+                    player.y < enemy.y + enemy.h && player.y + player.h > enemy.y) {
+                    alert("Game Over! Score: " + score);
+                    document.location.reload();
+                }
+
+                if (enemy.y > canvas.height) {
+                    enemies.splice(index, 1);
+                    score++;
+                    document.getElementById('score').innerText = "Score: " + score;
+                }
+            });
+
+            spawnEnemy();
+            requestAnimationFrame(update);
+        }
+
+        window.addEventListener('keydown', (e) => {
+            if (e.key === 'ArrowLeft' && player.x > 0) player.x -= 20;
+            if (e.key === 'ArrowRight' && player.x < canvas.width - player.w) player.x += 20;
+        });
+
+        update();
+    </script>
+</body>
+</html>
