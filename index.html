@@ -1,70 +1,176 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Simple Race</title>
+    <title>Nitro Runner Pro</title>
     <style>
-        body { margin: 0; background: #333; overflow: hidden; font-family: sans-serif; }
-        #gameCanvas { background: #555; display: block; margin: 0 auto; border-left: 5px dashed white; border-right: 5px dashed white; }
-        #score { position: absolute; top: 10px; left: 10px; color: white; font-size: 20px; }
+        body { margin: 0; background: #1a1a1a; overflow: hidden; font-family: sans-serif; color: white; touch-action: none; }
+        #gameContainer { position: relative; width: 400px; margin: 0 auto; height: 100vh; }
+        canvas { background: #333; display: block; border-left: 4px solid #555; border-right: 4px solid #555; }
+        .screen {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            display: none; flex-direction: column; justify-content: center;
+            align-items: center; background: rgba(0,0,0,0.9); text-align: center;
+        }
+        .active { display: flex; }
+        button { 
+            padding: 15px 30px; margin: 10px; font-size: 18px; cursor: pointer; 
+            background: #ff4757; color: white; border: none; border-radius: 8px;
+        }
+        .stat-box { position: absolute; top: 10px; left: 10px; z-index: 10; font-weight: bold; }
+        .color-btn { width: 50px; height: 50px; margin: 10px; border: 3px solid #555; cursor: pointer; display: inline-block; }
     </style>
 </head>
 <body>
-    <div id="score">Score: 0</div>
+
+<div id="gameContainer">
+    <div class="stat-box">
+        <div>Score: <span id="currentScore">0</span></div>
+        <div>Coins: $<span id="coinCount">0</span></div>
+        <div>Best: <span id="highScore">0</span></div>
+    </div>
+
     <canvas id="gameCanvas"></canvas>
 
-    <script>
-        const canvas = document.getElementById('gameCanvas');
-        const ctx = canvas.getContext('2d');
-        canvas.width = 400; canvas.height = window.innerHeight;
+    <div id="mainMenu" class="screen active">
+        <h1>NITRO RUNNER</h1>
+        <button onclick="showScreen('levelMenu')">RACE</button>
+        <button onclick="showScreen('shopMenu')">GARAGE</button>
+    </div>
 
-        let score = 0;
-        let player = { x: 175, y: canvas.height - 100, w: 50, h: 80, speed: 5 };
-        let enemies = [];
+    <div id="levelMenu" class="screen">
+        <h2>DIFFICULTY</h2>
+        <button onclick="startGame(6)">EASY</button>
+        <button onclick="startGame(11)">HARD</button>
+        <button onclick="showScreen('mainMenu')">BACK</button>
+    </div>
 
-        function drawPlayer() {
-            ctx.fillStyle = 'red';
-            ctx.fillRect(player.x, player.y, player.w, player.h);
-        }
+    <div id="shopMenu" class="screen">
+        <h2>GARAGE</h2>
+        <p>Unlock colors with coins!</p>
+        <div id="colorList">
+            <div class="color-btn" style="background:#ff4757" onclick="setCar('#ff4757')"></div>
+            <div class="color-btn" style="background:#2ecc71" onclick="setCar('#2ecc71')"></div>
+            <div class="color-btn" style="background:#f1c40f" onclick="setCar('#f1c40f')"></div>
+        </div>
+        <button onclick="showScreen('mainMenu')">BACK</button>
+    </div>
 
-        function spawnEnemy() {
-            if (Math.random() < 0.02) {
-                enemies.push({ x: Math.random() * (canvas.width - 50), y: -100, w: 50, h: 80 });
-            }
-        }
+    <div id="gameOver" class="screen">
+        <h1 id="failText">CRASHED!</h1>
+        <button onclick="startGame(gameSpeed)">RETRY</button>
+        <button onclick="showScreen('mainMenu')">MENU</button>
+    </div>
+</div>
 
-        function update() {
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
-            drawPlayer();
-            
-            enemies.forEach((enemy, index) => {
-                enemy.y += 5;
-                ctx.fillStyle = 'blue';
-                ctx.fillRect(enemy.x, enemy.y, enemy.w, enemy.h);
+<script>
+    const canvas = document.getElementById('gameCanvas');
+    const ctx = canvas.getContext('2d');
+    canvas.width = 400; canvas.height = window.innerHeight;
 
-                // Collision Detection
-                if (player.x < enemy.x + enemy.w && player.x + player.w > enemy.x &&
-                    player.y < enemy.y + enemy.h && player.y + player.h > enemy.y) {
-                    alert("Game Over! Score: " + score);
-                    document.location.reload();
-                }
+    let gameState = 'MENU';
+    let score = 0;
+    let coins = parseInt(localStorage.getItem('raceCoins')) || 0;
+    let highScore = localStorage.getItem('raceHighScore') || 0;
+    let carColor = localStorage.getItem('carColor') || '#ff4757';
+    let gameSpeed = 6;
+    let player = { x: 175, y: canvas.height - 120, w: 45, h: 80 };
+    let obstacles = [];
 
-                if (enemy.y > canvas.height) {
-                    enemies.splice(index, 1);
-                    score++;
-                    document.getElementById('score').innerText = "Score: " + score;
-                }
-            });
+    document.getElementById('highScore').innerText = highScore;
+    document.getElementById('coinCount').innerText = coins;
 
-            spawnEnemy();
-            requestAnimationFrame(update);
-        }
+    function showScreen(id) {
+        document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+        if(id !== 'playing') document.getElementById(id).classList.add('active');
+        gameState = (id === 'playing') ? 'PLAYING' : 'MENU';
+    }
 
-        window.addEventListener('keydown', (e) => {
-            if (e.key === 'ArrowLeft' && player.x > 0) player.x -= 20;
-            if (e.key === 'ArrowRight' && player.x < canvas.width - player.w) player.x += 20;
-        });
+    function setCar(color) {
+        carColor = color;
+        localStorage.setItem('carColor', color);
+    }
 
+    function startGame(speed) {
+        gameSpeed = speed;
+        score = 0;
+        obstacles = [];
+        player.x = 175;
+        showScreen('playing');
         update();
-    </script>
+    }
+
+    function update() {
+        if (gameState !== 'PLAYING') return;
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        
+        // Draw Player
+        ctx.fillStyle = carColor;
+        ctx.shadowBlur = 10; ctx.shadowColor = carColor;
+        ctx.fillRect(player.x, player.y, player.w, player.h);
+        ctx.shadowBlur = 0;
+
+        // Spawn Items (Obstacles or Coins)
+        if (Math.random() < 0.03) {
+            const isCoin = Math.random() < 0.3;
+            obstacles.push({ 
+                x: Math.random() * (canvas.width - 40), 
+                y: -100, 
+                w: 40, h: 40, 
+                type: isCoin ? 'coin' : 'enemy' 
+            });
+        }
+
+        obstacles.forEach((obj, i) => {
+            obj.y += gameSpeed;
+            ctx.fillStyle = obj.type === 'coin' ? '#ffd700' : '#444';
+            obj.type === 'coin' ? ctx.beginPath() : null;
+            obj.type === 'coin' ? ctx.arc(obj.x + 20, obj.y + 20, 15, 0, Math.PI*2) : ctx.fillRect(obj.x, obj.y, obj.w, obj.h);
+            obj.type === 'coin' ? ctx.fill() : null;
+
+            // Collision logic
+            if (player.x < obj.x + obj.w && player.x + player.w > obj.x &&
+                player.y < obj.y + obj.h && player.y + player.h > obj.y) {
+                if (obj.type === 'coin') {
+                    coins += 5;
+                    localStorage.setItem('raceCoins', coins);
+                    document.getElementById('coinCount').innerText = coins;
+                    obstacles.splice(i, 1);
+                } else {
+                    endGame();
+                }
+            }
+
+            if (obj.y > canvas.height) {
+                obstacles.splice(i, 1);
+                if(obj.type === 'enemy') {
+                    score++;
+                    document.getElementById('currentScore').innerText = score;
+                }
+            }
+        });
+        requestAnimationFrame(update);
+    }
+
+    function endGame() {
+        gameState = 'GAMEOVER';
+        if (score > highScore) {
+            localStorage.setItem('raceHighScore', score);
+            document.getElementById('highScore').innerText = score;
+        }
+        showScreen('gameOver');
+    }
+
+    // Controls
+    window.addEventListener('keydown', (e) => {
+        if (e.key === 'ArrowLeft' && player.x > 0) player.x -= 40;
+        if (e.key === 'ArrowRight' && player.x < canvas.width - player.w) player.x += 40;
+    });
+
+    canvas.addEventListener('touchstart', (e) => {
+        const touchX = e.touches[0].clientX;
+        if (touchX < window.innerWidth / 2) player.x -= 40;
+        else player.x += 40;
+    });
+</script>
 </body>
 </html>
